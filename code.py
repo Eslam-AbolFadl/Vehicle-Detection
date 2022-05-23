@@ -9,8 +9,6 @@ import matplotlib.pyplot as plt
 
 
 
-image2=cv2.imread(os.path.join("/home/saf/yolo-det/projenv/bin","test6.jpg"))
-
 
 def imageadd( i,img1, img2 ): 
    # I want to put logo on top-left corner, So I create a ROI

@@ -13,8 +13,8 @@ def pipeline (image):
     image=cv2.resize(image,(416,416))
  
  
-    weightspath=os.path.join("/home/saf/yolo-det/projenv/bin","yolov3-tiny.weights")
-    configpath=os.path.join("/home/saf/yolo-det/projenv/bin","yolov3-tiny.cfg")
+    weightspath=os.path.join("/home/saf/yolo-det/projenv/bin","yolov3.weights")# change to tiny files in case you are using yolov3 tiny
+    configpath=os.path.join("/home/saf/yolo-det/projenv/bin","yolov3.cfg") # change to tiny files in case you are using yolov3 tiny
     net= cv2.dnn.readNetFromDarknet(configpath,weightspath)
 
 

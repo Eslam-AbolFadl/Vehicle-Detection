@@ -1,3 +1,4 @@
+from timeit import timeit
 from moviepy.editor import *
 import sys
 import numpy as np
@@ -9,43 +10,12 @@ import time
 import matplotlib.pyplot as plt
 
 
-def imageadd( i,img1, img2 ): 
-   # I want to put logo on top-left corner, So I create a ROI
-   
-   rows,cols,channels = img2.shape
-   roi = img1[0:rows, cols*2:cols*(3)]
-   plt.imshow(cv2.cvtColor(img2,cv2.COLOR_BGR2RGB))
-   # Now create a mask of logo and create its inverse mask also
-   img2gray = cv2.cvtColor(img2,cv2.COLOR_BGR2GRAY)
-   ret,mask = cv2.threshold(img2gray, 10, 255, cv2.THRESH_BINARY)
-   mask_inv = cv2.bitwise_not(mask)
-   # Now black-out the area of logo in ROI
-   img1_bg  = cv2.bitwise_and(roi,roi,mask = mask_inv)
-   img1_bg=0
-   # Take only region of logo from logo image.
-   img2_fg  = cv2.bitwise_and(img2,img2,mask = mask)
-   # Put logo in ROI and modify the main image
-   dst     = cv2.add(img1_bg,img2_fg)img.setflags(write=1)
-   img1[0:rows, cols*i:cols*(i+1) ] = dst
-   print(i,"\n")
-   return img1
-
-def trackbar2(x):
-    confidence = x/100
-    r = r0.copy()
-    for output in np.vstack(outputs):
-        if output[4] > confidence:
-            x, y, w, h = output[:4]
-            p0 = int((x-w/2)*416), int((y-h/2)*416)
-            p1 = int((x+w/2)*416), int((y+h/2)*416)
-            cv2.rectangle(r, p0, p1, 1, 1)
-         
-        
-def pre(image):        
-        # Give the configuration and weight files for the model and load the network.
-    
-    weightspath=os.path.join("/home/saf/yolo-det/projenv/bin","yolov3.weights")
-    configpath=os.path.join("/home/saf/yolo-det/projenv/bin","yolov3.cfg")
+def pipeline (image):
+    image=cv2.resize(image,(416,416))
+ 
+ 
+    weightspath=os.path.join("/home/saf/yolo-det/projenv/bin","yolov3-tiny.weights")
+    configpath=os.path.join("/home/saf/yolo-det/projenv/bin","yolov3-tiny.cfg")
     net= cv2.dnn.readNetFromDarknet(configpath,weightspath)
 
 
@@ -53,32 +23,23 @@ def pre(image):
 
     layers=net.getLayerNames()
     outlayers= [layers[i - 1] for i in net.getUnconnectedOutLayers()]
-    # Load names of classes and get random colors
-    global classes
+   
+    # Load names of classes 
+
     classes= open('/home/saf/yolo-det/projenv/bin/coco_classes').read().strip().split('\n')
-    np.random.seed(10)
-    global colors 
-    colors = np.random.randint(0, 255, size=(len(classes), 3), dtype='uint8')
 
 
     net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
+    
     # construct a blob from the image
     blob = cv2.dnn.blobFromImage(image, 1/255.0, (416, 416), swapRB=True, crop=False)
     r = blob[0, 0, :, :]
-    my_project_dirblob = cv2.dnn.blobFromImage(image, 1/255.0, (416, 416), swapRB=True, crop=False)
-    #cv2.createTrackbar('confidence','window' 'blob', 50, 101, trackbar2)
-    #trackbar2(50)
-    #my_project_dir
     net.setInput(blob)
     t0 = time.time()
     global outputs 
     outputs = net.forward(outlayers)
     t = time.time()
     print('time=', t-t0)
-        
-def pipeline (image):
-    pre(image)   
-
 
     
     
@@ -92,7 +53,7 @@ def pipeline (image):
             scores = detection[5:]
             classID = np.argmax(scores)
             confidence = scores[classID]
-            if confidence > 0.5:
+            if confidence > 0.7:    ##only high score boxes will be kept, others will be removed
                 box = detection[:4] * np.array([w, h, w, h])
                 (centerX, centerY, width, height) = box.astype("int")
                 x = int(centerX - (width / 2))
@@ -103,24 +64,24 @@ def pipeline (image):
                 classIDs.append(classID)
 
     indices = cv2.dnn.NMSBoxes(boxes, confidences, 0.5, 0.4)
-    l=0
-    if len(indices) > 0:
+    l=0     #to insert objects on top of the image
+    if len(indices) > 0:  # if NMSBoxes has output ,then  insert boxes, classes, and scores of the detected objects
         for i in indices.flatten():
             (x, y) = (boxes[i][0], boxes[i][1])
             (w, h) = (boxes[i][2], boxes[i][3])
         
-            color = [int(c) for c in colors[classIDs[i]]]
-            cv2.rectangle(image, (x, y), (x + w, y + h), color, 2)
+            #color = [int(c) for c in colors[classIDs[i]]]
+            cv2.rectangle(image, (x, y), (x + w, y + h), (255,10,10), 2)
             text = "{}: {:.4f}".format(classes[classIDs[i]], confidences[i])
-            cv2.putText(image, text, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
-            #cropim= image[y:(y + h),x:x+w,0:3]
-            #image=imageadd(l,image,cropim)
-            #l=l+1
+            cv2.putText(image, text, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,10,10), 1)
+            
+            
+            # extract detected vehicles and instert them on the top of the image
+            cropim= image[y:(y + h),x:x+w,0:3]
+            rows,cols,channels = cropim.shape          
+            image[0:rows, cols*(2*l):cols*(2*l+1) ] = cropim
+            l=l+1
     return image           
-
-#cv2.imshow('window', image)
-#cv2.waitKey(0)
-#cv2.destroyAllWindows()
 
 
 def myf(argv):
@@ -129,7 +90,7 @@ def myf(argv):
  
 
     out_clip = clip1.fl_image(pipeline) #this function expects color images!!
-    %time out_clip.write_videofile(output, audio=False)
+    out_clip.write_videofile(output, audio=False)
 
     HTML("""
     <video  width="960" height="540" controls>

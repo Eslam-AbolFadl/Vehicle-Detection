@@ -1,4 +1,4 @@
-from timeit import timeit
+
 from moviepy.editor import *
 import sys
 import numpy as np
